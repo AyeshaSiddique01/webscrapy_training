@@ -58,9 +58,7 @@ class SapphireSpider(scrapy.Spider):
         products = response.css("div.t4s-product")
 
         for product in products:
-            description_relative_url = product.css(
-                "a.t4s-full-width-link::attr(href)"
-            ).get()
+            description_relative_url = product.css("a.t4s-full-width-link::attr(href)").get()
             absolute_url = urljoin(response.url, description_relative_url)
             yield scrapy.Request(
                 absolute_url,
@@ -98,10 +96,11 @@ class SapphireSpider(scrapy.Spider):
         if not color_urls:
             yield item
             return
-        response.meta.update({"item": item, "color_urls": color_urls, "color_names": color_names})
-        yield self.us_get_item_or_request(response)
 
-    def us_get_item_or_request(self, response):
+        response.meta.update({"item": item, "color_urls": color_urls, "color_names": color_names})
+        yield self.get_item_or_request(response)
+
+    def get_item_or_request(self, response):
         if response.meta["color_urls"]:
             color_url = response.meta["color_urls"].pop()
             color_name = response.meta["color_names"].pop()
@@ -116,9 +115,7 @@ class SapphireSpider(scrapy.Spider):
         return item
 
     def parse_color(self, response):
-        image_urls = response.css(
-            "div.t4s-product__media img.t4s-lz--fadeIn::attr(data-src)"
-        ).getall()
+        image_urls = response.css("div.t4s-product__media img.t4s-lz--fadeIn::attr(data-src)").getall()
         color = ItemColor(
             item_color=response.meta["color_name"],
             url=response.url,
@@ -127,7 +124,7 @@ class SapphireSpider(scrapy.Spider):
         )
         response.meta["item"]["items_colors"].append(color)
 
-        yield self.us_get_item_or_request(response)
+        yield self.get_item_or_request(response)
 
     def get_sizes(self, response):
         sizes_response = response.css("script.pr_variants_json::text").get()
@@ -151,9 +148,7 @@ class SapphireSpider(scrapy.Spider):
         return description.replace("&amp;amp;", "&") if description else ""
 
     def check_availability(self, response):
-        stock_data = response.css(
-            "div[data-product-featured]::attr(data-product-featured)"
-        ).get()
+        stock_data = response.css("div[data-product-featured]::attr(data-product-featured)").get()
         stock_data = json.loads(stock_data) if stock_data else {}
 
         return stock_data.get("available")

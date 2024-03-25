@@ -1,0 +1,5 @@
+.venv
+*.jsonl
+*/.DS_Store
+*.vscode/
+clothing_app/clothing_app/spiders/sapphire_*

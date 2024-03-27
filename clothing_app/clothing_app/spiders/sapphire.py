@@ -95,18 +95,16 @@ class SapphireSpider(scrapy.Spider):
             yield item
             return
 
-        print("colors-----------wertyuiuytrew---------------", colors)
         for color in colors:
             item["color_name"] = color.css("span.tooltiptext::text").get()
             url = color.css("::attr(href)").get()
-
-            if url.find("https") == -1:
+            
+            if not url.startswith("http"):
                 url = urljoin(response.url, url)
             yield scrapy.Request(url, self.parse_color, meta={"item": item})
 
     def parse_color(self, response):
         item = response.meta["item"]
-        print("----------zxcvbm,------------", item["title"])
         sku = response.css("h3.t4s-sku-value ::text").get()
         image_urls = response.css("div.t4s-product__media img.t4s-lz--fadeIn::attr(data-src)").getall()
         item["image_urls"] = [f"https:{img.split('?')[0]}" for img in image_urls]

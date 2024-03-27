@@ -86,22 +86,20 @@ class SapphireSpider(scrapy.Spider):
             new_price_text=response.css("span.money::text").getall()[1],
             category_names=response.meta["parent_categories_list"],
             image_urls=[f"https:{img.split('?')[0]}" for img in image_urls],
-            size_infos=self.get_sizes(response),
             use_size_level_prices=False
         )
         colors = response.css("a.cstm-tooltip")
 
         if not colors:
+            item["size_infos"]=self.get_sizes(response, response.css("h3.t4s-sku-value ::text").get())
             yield item
             return
 
         for color in colors:
-            item["color_name"] = color.css("span.tooltiptext::text").get()
+            color_item = item.copy()
+            color_item["color_name"] = color.css("span.tooltiptext::text").get()
             url = color.css("::attr(href)").get()
-            
-            if not url.startswith("http"):
-                url = urljoin(response.url, url)
-            yield scrapy.Request(url, self.parse_color, meta={"item": item})
+            yield response.follow(url, self.parse_color, meta={"item": color_item})
 
     def parse_color(self, response):
         item = response.meta["item"]
@@ -111,19 +109,19 @@ class SapphireSpider(scrapy.Spider):
         item["available"] = self.check_availability(response)
         item["base_sku"] = sku[0: 9]
         item["color_code"] = sku[9: len(sku)]
-
+        item["size_infos"]=self.get_sizes(response, response.css("h3.t4s-sku-value ::text").get())
         yield item
 
-    def get_sizes(self, response):
+    def get_sizes(self, response, sku):
         sizes_response = response.css("script.pr_variants_json::text").get()
         sizes = json.loads(sizes_response) if sizes_response else []
         size_items = []
 
         for size in sizes:
             size_item = SizeItem()
-            size_item["size_identifier"] = size.get("id")
-            size_item["stock"] = size.get("inventory_quantity") > 0
             size_item["size_name"] = size.get("name")
+            size_item["size_identifier"] = size.get("name") + sku
+            size_item["stock"] = size.get("inventory_quantity") > 0
             size_items.append(size_item)
 
         return size_items

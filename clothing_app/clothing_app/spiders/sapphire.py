@@ -82,8 +82,8 @@ class SapphireSpider(scrapy.Spider):
             description_text=description.replace(
                 "&amp;amp;", "&") if description else "",
             available=self.check_availability(response),
-            old_price_text=response.css("span.money::text").getall()[1],
-            new_price_text=response.css("span.money::text").getall()[1],
+            old_price_text=self.typecast_price(response.css("span.money::text").getall()[1]),
+            new_price_text=self.typecast_price(response.css("span.money::text").getall()[1]),
             category_names=response.meta["parent_categories_list"],
             image_urls=[f"https:{img.split('?')[0]}" for img in image_urls],
             use_size_level_prices=False
@@ -137,3 +137,9 @@ class SapphireSpider(scrapy.Spider):
         stock_data = json.loads(stock_data) if stock_data else {}
 
         return stock_data.get("available")
+
+    def typecast_price(self, value):
+        if isinstance(value, str):
+            striped_price = value.strip("Rs.")
+            price = striped_price.replace(',', '')
+            return float(price)

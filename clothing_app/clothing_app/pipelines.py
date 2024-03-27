@@ -8,19 +8,9 @@ import json
 import sqlite3
 from datetime import datetime
 
-from itemadapter import ItemAdapter
-
 
 class ClothingAppPipeline:
     def process_item(self, item, spider):
-        adapter = ItemAdapter(item)
-        for field_name in adapter.field_names():
-            if field_name in ('old_price_text', 'new_price_text'):
-                value = adapter.get(field_name)
-                if isinstance(value, str):
-                    striped_price = value.strip("Rs.")
-                    price = striped_price.replace(',', '')
-                    adapter[field_name] = float(price)
         return item
 
 

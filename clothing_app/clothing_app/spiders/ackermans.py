@@ -1,6 +1,5 @@
 import copy
 import json
-import math
 from urllib.parse import urljoin
 
 import scrapy
@@ -71,11 +70,9 @@ class AckermansSpider(scrapy.Spider):
         yield self.parse_products(response, data)
 
         total_products = data["data"]["products"]["total_count"]
-        no_of_pages = math.ceil(total_products / self.page_size)
+        no_of_pages = -(-total_products // self.page_size)
         for i in range(1, no_of_pages + 1):
-            yield self.make_graphql_category_request(
-                response.meta, i, self.parse_products
-            )
+            yield self.make_graphql_category_request(response.meta, i, self.parse_products)
 
     def parse_products(self, response, data=None):
         if not data:
@@ -86,9 +83,7 @@ class AckermansSpider(scrapy.Spider):
             for product in products:
                 meta = copy.deepcopy(response.meta)
                 meta["url_key"] = product["url_key"]
-                return self.make_graphql_product_request(
-                    meta, self.parse_product_details
-                )
+                return self.make_graphql_product_request(meta, self.parse_product_details)
 
     def parse_product_details(self, response):
         data = json.loads(response.text)
@@ -109,9 +104,9 @@ class AckermansSpider(scrapy.Spider):
         item["use_size_level_prices"] = False
 
         response.meta.update({"item": item, "item_data": item_data})
-        yield from self.get_color(response)
+        yield from self.parse_color(response)
 
-    def get_color(self, response):
+    def parse_color(self, response):
         item_data = response.meta["item_data"]
         item = response.meta["item"]
 
@@ -130,9 +125,9 @@ class AckermansSpider(scrapy.Spider):
             return
 
         for color in colors:
-            yield from self.get_color_variant(item, variants, color)
+            yield from self.parse_color_variant(item, variants, color)
 
-    def get_color_variant(self, item, variants, color):
+    def parse_color_variant(self, item, variants, color):
         color_sizes = []
         item["color_name"] = color
 
@@ -143,20 +138,15 @@ class AckermansSpider(scrapy.Spider):
         yield item
 
     def filter_menu_categories(self, categories):
-        for category in categories:
-            if category.get("include_in_menu"):
-                yield category
+        return [category for category in categories if category.get("include_in_menu")]
 
     def is_children_exists(self, item):
-        for child in item:
-            if child.get("include_in_menu"):
-                return True
-        return False
+        return any(child.get("include_in_menu") for child in item)
 
     def get_images(self, item_data):
         images = item_data["media_gallery"]
-        images_url = [self.product_image_base_url+image['file_name'] for image in images]
-        return images_url
+        return [self.product_image_base_url+image['file_name'] for image in images]
+
 
     def get_sizes_info(self, item_data):
         item_size = item_data["productsize"]
@@ -164,11 +154,7 @@ class AckermansSpider(scrapy.Spider):
             return item_size
 
         sizes_data = item_data["variants"]
-        item_sizes = []
-
-        for size in sizes_data:
-            item_sizes.append(self.get_size(size))
-        return item_sizes
+        return [self.get_size(size) for size in sizes_data]
 
     def get_size(self, size):
         return SizeItem(

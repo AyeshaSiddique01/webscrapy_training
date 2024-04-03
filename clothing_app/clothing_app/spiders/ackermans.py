@@ -11,41 +11,38 @@ class AckermansSpider(scrapy.Spider):
     name = "ackermans"
 
     def start_requests(self):
-        url = "https://www.ackermans.co.za/"
-        yield scrapy.Request(url, self.parse)
+        yield scrapy.Request(self.navigation_api, self.parse_home_page)
 
     navigation_api = "https://www.ackermans.co.za/api/startup-data.json"
     products_api = "https://www.ackermans.co.za/graphql?operationName=products_listAndAggregations"
     product_data_api = "https://www.ackermans.co.za/graphql?operationName=products_pdp"
     product_base_url = "https://www.ackermans.co.za/products/"
     product_image_base_url = "https://www.ackermans.co.za/imagekit/prod-ack-product-images/"
-
-
-    page_size = 20
-
     products_headers = {
         "Content-Type": "application/json",
         "accept": "application/json, text/plain, */*",
     }
 
-    def parse(self, response):
-        yield scrapy.Request(self.navigation_api, self.parse_home_page)
+    page_size = 20
 
     def parse_home_page(self, response):
-        categories = json.loads(response.text)["categories"][0]
+        categories_data = json.loads(response.text)["categories"][0]
+        categories = categories_data.get("children")
 
-        for category in self.filter_menu_categories(categories.get("children")):
+        for category in self.filter_menu_categories(categories):
             if category["name"] == "Promotions":
                 continue
             yield from self.parse_childrens(response, category, [category])
 
     def parse_childrens(self, response, categories, parents):
+        children = categories["children"]
 
-        for category in self.filter_menu_categories(categories["children"]):
+        for category in self.filter_menu_categories(children):
             parent_categories_list = copy.deepcopy(parents)
             parent_categories_list.append(category)
+            category_children = category.get("children")
 
-            if self.is_children_exists(category.get("children")):
+            if self.is_children_exists(category_children):
                 yield from self.parse_childrens(response, category, parent_categories_list)
             else:
                 yield self.make_nav_request(response, parent_categories_list)
@@ -145,8 +142,10 @@ class AckermansSpider(scrapy.Spider):
 
     def get_images(self, item_data):
         images = item_data["media_gallery"]
-        return [self.product_image_base_url+image['file_name'] for image in images]
-
+        return [self.join_image(image) for image in images]
+    
+    def join_image(self, image):
+        return urljoin(self.product_image_base_url,image['file_name'])
 
     def get_sizes_info(self, item_data):
         item_size = item_data["productsize"]

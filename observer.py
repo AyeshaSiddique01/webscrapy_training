@@ -1,23 +1,6 @@
 from abc import abstractmethod
 from random import choice
 
-class IObservable:
-    @abstractmethod
-    def add(self, observer):
-        pass
-
-    @abstractmethod
-    def remove(self, observer):
-        pass
-
-    @abstractmethod
-    def notify(self, topic):
-        pass
-
-class IObserver:
-    @abstractmethod
-    def update(self, topic):
-        pass
 
 class TopicStore:
     def __init__(self, topics):
@@ -29,35 +12,58 @@ class TopicStore:
     def remove_topic(self, topic):
         self.topics.remove(topic)
 
-class ConcreteTeacher(IObservable):
-    def __init__(self, topic_store):
-        self.topic_store = topic_store
+
+class IObservable:
+    def __init__(self):
         self.observers = []
 
+    @abstractmethod
     def add(self, observer):
         self.observers.append(observer)
 
+    @abstractmethod
     def remove(self, observer):
         self.observers.remove(observer)
 
-    def notify(self, topic):
+    @abstractmethod
+    def notify(self, item):
         for observer in self.observers:
-            observer.update(topic)
+            observer.update(item)
+
+
+class IObserver:
+    def __init__(self, name):
+        self.name = name
+
+    @abstractmethod
+    def register(self, observable):
+        self.observable = observable
+
+    @abstractmethod
+    def update(self, item):
+        pass
+
+
+class Teacher(IObservable):
+    def __init__(self, topic_store):
+        super().__init__()
+        self.topic_store = topic_store
 
     def remove_topic(self, topic):
         if self.topic_store.is_topic_available(topic):
             self.topic_store.remove_topic(topic)
             self.notify(topic)
 
-class ConcreteStudent(IObserver):
+
+class Student(IObserver):
     def __init__(self, name):
-        self.name = name
+        super().__init__(name)
         self.selected_topic = None
 
-    def select_random_topic(self, teacher):
-        selected_topic = choice(list(teacher.topic_store.topics))
+    def select_random_topic(self):
+        selected_topic = choice(list(self.observable.topic_store.topics))
         self.selected_topic = selected_topic
-        teacher.remove_topic(selected_topic)
+        self.observable.remove_topic(selected_topic)
 
     def get_selected_topic(self):
         print(f"{self.name} selected topic {self.selected_topic}")
@@ -70,15 +76,20 @@ no_of_topics = 5
 topics = [i for i in range(1, no_of_topics + 1)]
 topic_store = TopicStore(topics)
 
-teacher = ConcreteTeacher(topic_store)
+teacher = Teacher(topic_store)
 
-students = [ConcreteStudent(f"Student{i}") for i in range(1, no_of_topics + 1)]
+students = [Student(f"Student{i}") for i in range(1, no_of_topics + 1)]
+
+for student in students:
+    student.register(teacher)
 
 for student in students:
     teacher.add(student)
 
 for student in students:
-    student.select_random_topic(teacher)
+    student.select_random_topic()
 
 for student in students:
     student.get_selected_topic()
+
+print(teacher.topic_store.topics)

@@ -11,6 +11,21 @@ from datetime import datetime
 
 class ClothingAppPipeline:
     def process_item(self, item, spider):
+        item = self.typecast_values(item)
+        item = self.fill_essential_values(item)
+        return item
+
+    def typecast_values(self, item):
+        if item.get("old_price_text"):
+            item["old_price_text"] = float(item["old_price_text"])
+        if item.get("new_price_text"):
+            item["new_price_text"] = float(item["new_price_text"])
+
+        return item
+
+    def fill_essential_values(self, item):
+        if not item.get("timestamp"):
+            item["timestamp"] = str(datetime.now())
         return item
 
 

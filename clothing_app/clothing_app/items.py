@@ -1,32 +1,3 @@
-# # Define here the models for your scraped items
-# #
-# # See documentation in:
-# # https://docs.scrapy.org/en/latest/topics/items.html
-
-# from scrapy import Field, Item
-
-
-# class ClothingAppItem(Item):
-#     pass
-
-# class Item(Item):
-#     id = Field(type=str, default="")
-
-
-# class Size(Item):
-#     id = Field(type=str, default="")
-#     in_stock = Field(type=bool, default=False)
-#     name = Field(type=str, default="")
-#     orderable = Field(type=bool, default=False)
-
-# class Color(Item):
-#     color = Field(type=str, default="")
-#     id = Field(type=str, default="")
-#     url = Field(type=str, default="")
-#     image_urls = Field(type=list, default=[])
-#     in_stock = Field(type=bool, default=False)
-
-
 import scrapy
 
 class ProductItem(scrapy.Item):

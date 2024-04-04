@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from random import choice
 
 
@@ -13,31 +13,26 @@ class TopicStore:
         self.topics.remove(topic)
 
 
-class IObservable:
-    def __init__(self):
-        self.observers = []
+class IObservable(ABC):
 
     @abstractmethod
     def add(self, observer):
-        self.observers.append(observer)
+        pass
 
     @abstractmethod
     def remove(self, observer):
-        self.observers.remove(observer)
+        pass
 
     @abstractmethod
     def notify(self, item):
-        for observer in self.observers:
-            observer.update(item)
+        pass
 
 
-class IObserver:
-    def __init__(self, name):
-        self.name = name
+class IObserver(ABC):
 
     @abstractmethod
     def register(self, observable):
-        self.observable = observable
+        pass
 
     @abstractmethod
     def update(self, item):
@@ -46,8 +41,18 @@ class IObserver:
 
 class Teacher(IObservable):
     def __init__(self, topic_store):
-        super().__init__()
+        self.observers = []
         self.topic_store = topic_store
+
+    def add(self, observer):
+        self.observers.append(observer)
+
+    def remove(self, observer):
+        self.observers.remove(observer)
+
+    def notify(self, item):
+        for observer in self.observers:
+            observer.update(item)
 
     def remove_topic(self, topic):
         if self.topic_store.is_topic_available(topic):
@@ -57,8 +62,12 @@ class Teacher(IObservable):
 
 class Student(IObserver):
     def __init__(self, name):
-        super().__init__(name)
+        self.name = name
         self.selected_topic = None
+        self.observable = None
+
+    def register(self, observable):
+        self.observable = observable
 
     def select_random_topic(self):
         selected_topic = choice(list(self.observable.topic_store.topics))

@@ -38,17 +38,17 @@ class AckermansSpider(scrapy.Spider):
             for category in all_categories:
                 yield self.make_nav_request(response, category)
 
-    def parse_childrens(self, categories, parents):
-        children = categories["children"]
+    def parse_childrens(self, category, parents):
+        children = category["children"]
         menu_filtered_children = self.filter_menu_categories(children)
 
-        for category in menu_filtered_children:
+        for cat in menu_filtered_children:
             parent_categories_list = copy.deepcopy(parents)
-            parent_categories_list.append(category)
-            category_children = category.get("children")
+            parent_categories_list.append(cat)
+            category_children = cat.get("children")
 
             if self.do_children_exist(category_children):
-                yield from self.parse_childrens( category, parent_categories_list)
+                yield from self.parse_childrens( cat, parent_categories_list)
             else:
                 yield parent_categories_list
 
@@ -98,8 +98,8 @@ class AckermansSpider(scrapy.Spider):
         item["title"] = item_data["name"]
         item["description_text"] = item_data["meta_description"]
         item["available"] = item_data["stock_status"] == "IN_STOCK"
-        item["old_price_text"] = item_data["price_range"]["minimum_price"]["regular_price"]["value"]
-        item["new_price_text"] = item_data["price_range"]["minimum_price"]["final_price"]["value"]
+        item["old_price_text"] = self.get_price(item_data, "regular_price")
+        item["new_price_text"] = self.get_price(item_data, "final_price")
         item["category_names"] = response.meta["categories"]
         item["image_urls"] = self.get_images(item_data)
         item["size_infos"] = self.get_sizes_info(item_data)
@@ -139,6 +139,10 @@ class AckermansSpider(scrapy.Spider):
         item["size_infos"] = color_sizes
         yield item
 
+    def get_price(self, data, price_type):
+        prices = data["price_range"]["minimum_price"]
+        return prices[price_type]["value"]
+
     def filter_menu_categories(self, categories):
         return [category for category in categories if category.get("include_in_menu")]
 
@@ -161,12 +165,16 @@ class AckermansSpider(scrapy.Spider):
         return [self.get_size(size) for size in sizes_data]
 
     def get_size(self, size):
+        product = size["product"]
+        price = product["price_range"]["minimum_price"]
+        size_attribute = size["attributes"][1]
+        
         return SizeItem(
-            size_original_price_text=size["product"]["price_range"]["minimum_price"]["regular_price"]["value"],
-            size_current_price_text=size["product"]["price_range"]["minimum_price"]["final_price"]["value"],
-            size_identifier=size["product"]["id"],
-            size_name=size["attributes"][1]["label"].strip(),
-            stock=size["product"]["stock_status"] == "IN_STOCK",
+            size_original_price_text=price["regular_price"]["value"],
+            size_current_price_text=price["final_price"]["value"],
+            size_identifier=product["id"],
+            size_name=size_attribute["label"].strip(),
+            stock=product["stock_status"] == "IN_STOCK",
         )
 
     def make_graphql_category_request(self, meta, page, callback):

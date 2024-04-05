@@ -28,31 +28,34 @@ class SelectedSpider(scrapy.Spider):
             currency=data.get("currency"),
             category_names=data.get("category"),
             image_urls=self.get_images_url(response),
-            use_size_level_prices=False
+            use_size_level_prices=False,
         )
-        response.meta.update({"item": item})
-        yield from self.parse_variant(response)
+        variants = self.parse_variant(response)
+
+        for variant in variants:
+            yield from self.parse_item_color(variant, item)
 
     def parse_variant(self, response):
         data_urls = self.get_color_data_urls(response)
-        item = response.meta["item"]
 
         for url in data_urls:
             data = self.get_dataurl_data(url)
-            item_colors = data["product"]["variationAttributes"][0]["values"]
+            yield data
 
-            for item_color in item_colors:
-                if item_color["selected"]:
-                    item["color_name"] = item_color["displayValue"]
-                    item["available"] = data["product"]["available"]
-                    item["image_urls"] = self.get_color_images(item_color)
-                    item["size_infos"] = self.get_size_infos(data)
-                    yield item
+    def parse_item_color(self, data, item):
+        item_colors = data["product"]["variationAttributes"][0]["values"]
+        for item_color in item_colors:
+            if item_color["selected"]:
+                item["color_name"] = item_color["displayValue"]
+                item["available"] = data["product"]["available"]
+                item["image_urls"] = self.get_color_images(item_color)
+                item["size_infos"] = self.get_size_infos(data)
+                yield item
 
     def get_json_data(self, response):
-        data = response.css('script ::text').getall()[3]
+        data = response.css("script ::text").getall()[3]
         data = data.strip()
-        json_string = data[data.index('[')+1:-2]
+        json_string = data[data.index("[") + 1 : -2]
         json_data = json.loads(json_string)
         product_data = json_data["ecommerce"]["detail"]["products"][0]
         product_data["currency"] = json_data["ecommerce"]["currencyCode"]
@@ -65,8 +68,7 @@ class SelectedSpider(scrapy.Spider):
         return {}
 
     def get_images_url(self, response):
-        script_data = response.css(
-            'script[type="application/ld+json"]::text').get().strip("\n")
+        script_data = (response.css('script[type="application/ld+json"]::text').get().strip("\n"))
         data = json.loads(script_data) if script_data else {}
         return data.get("image")
 
@@ -104,8 +106,9 @@ class SelectedSpider(scrapy.Spider):
         item_size_infos = []
 
         for length in lengths:
-            length_data = self.get_dataurl_data(length["url"])
-            size_infos = length_data["product"]["variationAttributes"][1]["values"]
-            item_size_infos += self.get_length_size_infos(size_infos, length['id'])
+            if length["selectable"]:
+                length_data = self.get_dataurl_data(length.get("url"))
+                size_infos = length_data["product"]["variationAttributes"][1]["values"]
+                item_size_infos += self.get_length_size_infos(size_infos, length["id"])
 
         return item_size_infos

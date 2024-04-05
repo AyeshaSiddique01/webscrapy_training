@@ -16,8 +16,8 @@ class SelectedSpider(scrapy.Spider):
     def parse(self, response):
         data = self.get_json_data(response)
         item = ProductItem(
-            url = response.url,
-            base_sku = data.get("articleNumber"),
+            url=response.url,
+            base_sku=data.get("articleNumber"),
             identifier=data.get("id"),
             title=data.get("name"),
             brand=data.get("brand"),
@@ -39,17 +39,14 @@ class SelectedSpider(scrapy.Spider):
 
         for url in data_urls:
             data = self.get_dataurl_data(url)
-            item_size_infos = []
-
             item_colors = data["product"]["variationAttributes"][0]["values"]
+
             for item_color in item_colors:
                 if item_color["selected"]:
                     item["color_name"] = item_color["displayValue"]
                     item["available"] = data["product"]["available"]
-                    images = item_color["images"]["swatch"]
-                    item["image_urls"] = [image["url"] for image in images]
-                    item_size_infos = self.get_size_infos(data)
-                    item["size_infos"] = item_size_infos
+                    item["image_urls"] = self.get_color_images(item_color)
+                    item["size_infos"] = self.get_size_infos(data)
                     yield item
 
     def get_json_data(self, response):
@@ -73,9 +70,13 @@ class SelectedSpider(scrapy.Spider):
         data = json.loads(script_data) if script_data else {}
         return data.get("image")
 
+    def get_color_images(self, item_color):
+        images = item_color["images"]["swatch"]
+        return [image["url"] for image in images]
+
     def get_product_description(self, response):
         description = response.css("div.product-content__text::text").get()
-        return description if description else ""
+        return description or ""
 
     def get_color_data_urls(self, response):
         data_url = response.css("button.product-attribute__button--color-swatch ::attr(data-url)").getall()

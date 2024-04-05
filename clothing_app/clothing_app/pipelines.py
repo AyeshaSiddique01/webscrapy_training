@@ -5,6 +5,7 @@
 
 
 import json
+import re
 import sqlite3
 from datetime import datetime
 
@@ -17,11 +18,24 @@ class ClothingAppPipeline:
 
     def typecast_values(self, item):
         if item.get("old_price_text"):
-            item["old_price_text"] = float(item["old_price_text"])
+            price = item["old_price_text"]
+            if isinstance(price, str):
+                extracted_price = self.extract_numbers(price)
+                item["old_price_text"] = float(extracted_price)
+
         if item.get("new_price_text"):
-            item["new_price_text"] = float(item["new_price_text"])
+            price = item["new_price_text"]
+            if isinstance(price, str):
+                extracted_price = self.extract_numbers(item["new_price_text"])
+                item["new_price_text"] = float(extracted_price)
 
         return item
+
+    def extract_numbers(self, text):
+        pattern = r'([\d,.]+)'
+        matches = re.findall(pattern, text)
+        number = matches[0].replace(',', '')
+        return number
 
     def fill_essential_values(self, item):
         if not item.get("timestamp"):

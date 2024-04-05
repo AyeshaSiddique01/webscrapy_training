@@ -10,9 +10,6 @@ from ..items import ProductItem, SizeItem
 class AckermansSpider(scrapy.Spider):
     name = "ackermans"
 
-    def start_requests(self):
-        yield scrapy.Request(self.navigation_api, self.parse_home_page)
-
     navigation_api = "https://www.ackermans.co.za/api/startup-data.json"
     products_api = "https://www.ackermans.co.za/graphql?operationName=products_listAndAggregations"
     product_data_api = "https://www.ackermans.co.za/graphql?operationName=products_pdp"
@@ -25,27 +22,35 @@ class AckermansSpider(scrapy.Spider):
 
     page_size = 20
 
+    def start_requests(self):
+        yield scrapy.Request(self.navigation_api, self.parse_home_page)
+
     def parse_home_page(self, response):
         categories_data = json.loads(response.text)["categories"][0]
         categories = categories_data.get("children")
+        menu_filtered_categories = self.filter_menu_categories(categories)
 
-        for category in self.filter_menu_categories(categories):
-            if category["name"] == "Promotions":
+        for child_category in menu_filtered_categories:
+            if child_category["name"] == "Promotions":
                 continue
-            yield from self.parse_childrens(response, category, [category])
 
-    def parse_childrens(self, response, categories, parents):
+            all_categories = self.parse_childrens( child_category, [child_category])
+            for category in all_categories:
+                yield self.make_nav_request(response, category)
+
+    def parse_childrens(self, categories, parents):
         children = categories["children"]
+        menu_filtered_children = self.filter_menu_categories(children)
 
-        for category in self.filter_menu_categories(children):
+        for category in menu_filtered_children:
             parent_categories_list = copy.deepcopy(parents)
             parent_categories_list.append(category)
             category_children = category.get("children")
 
-            if self.is_children_exists(category_children):
-                yield from self.parse_childrens(response, category, parent_categories_list)
+            if self.do_children_exist(category_children):
+                yield from self.parse_childrens( category, parent_categories_list)
             else:
-                yield self.make_nav_request(response, parent_categories_list)
+                yield parent_categories_list
 
     def make_nav_url(self, categories):
         url = self.product_base_url
@@ -137,7 +142,7 @@ class AckermansSpider(scrapy.Spider):
     def filter_menu_categories(self, categories):
         return [category for category in categories if category.get("include_in_menu")]
 
-    def is_children_exists(self, item):
+    def do_children_exist(self, item):
         return any(child.get("include_in_menu") for child in item)
 
     def get_images(self, item_data):

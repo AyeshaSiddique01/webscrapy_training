@@ -5,12 +5,37 @@
 
 
 import json
+import re
 import sqlite3
 from datetime import datetime
 
 
 class ClothingAppPipeline:
     def process_item(self, item, spider):
+        item = self.typecast_values(item)
+        item = self.fill_essential_values(item)
+        return item
+
+    def typecast_values(self, item):
+        if item.get("old_price_text"):
+            item["old_price_text"] = self.price_string_to_number(item["old_price_text"])
+
+        if item.get("new_price_text"):
+            item["new_price_text"] = self.price_string_to_number(item["new_price_text"])
+
+        return item
+
+    def price_string_to_number(self, text):
+        if isinstance(text, str):
+            pattern = r'([\d,.]+)'
+            matches = re.findall(pattern, text)
+            number = matches[0].replace(',', '')
+            return float(number)
+        return text
+
+    def fill_essential_values(self, item):
+        if not item.get("timestamp"):
+            item["timestamp"] = str(datetime.now())
         return item
 
 

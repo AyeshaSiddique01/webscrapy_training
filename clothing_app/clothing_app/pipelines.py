@@ -18,24 +18,20 @@ class ClothingAppPipeline:
 
     def typecast_values(self, item):
         if item.get("old_price_text"):
-            price = item["old_price_text"]
-            if isinstance(price, str):
-                extracted_price = self.extract_numbers(price)
-                item["old_price_text"] = float(extracted_price)
+            item["old_price_text"] = self.price_string_to_number(item["old_price_text"])
 
         if item.get("new_price_text"):
-            price = item["new_price_text"]
-            if isinstance(price, str):
-                extracted_price = self.extract_numbers(item["new_price_text"])
-                item["new_price_text"] = float(extracted_price)
+            item["new_price_text"] = self.price_string_to_number(item["new_price_text"])
 
         return item
 
-    def extract_numbers(self, text):
-        pattern = r'([\d,.]+)'
-        matches = re.findall(pattern, text)
-        number = matches[0].replace(',', '')
-        return number
+    def price_string_to_number(self, text):
+        if isinstance(text, str):
+            pattern = r'([\d,.]+)'
+            matches = re.findall(pattern, text)
+            number = matches[0].replace(',', '')
+            return float(number)
+        return text
 
     def fill_essential_values(self, item):
         if not item.get("timestamp"):

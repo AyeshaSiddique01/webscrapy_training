@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import random
 
+
 class TopicStore:
     def __init__(self, topics):
         self.topics = topics
@@ -64,10 +65,11 @@ class Teacher(IObservable):
             return True
         return False
 
-    def update_probability(self, observer):
+    def reduce_weight(self, observer):
         observer_index = self.observers.index(observer)
         self.weights[observer_index] -= self.weights[observer_index] * 0.9
-        
+
+
 class Student(IObserver):
     def __init__(self, name):
         self.name = name
@@ -78,10 +80,11 @@ class Student(IObserver):
         self.observable = observable
 
     def select_random_topic(self):
-        selected_topic = random.choice(list(self.observable.topic_store.topics))
+        selected_topic = random.choice(
+            list(self.observable.topic_store.topics))
         self.selected_topics.append(selected_topic)
         if self.observable.remove_topic(selected_topic):
-            self.observable.update_probability(self)
+            self.observable.reduce_weight(self)
 
     def get_selected_topic(self):
         print(f"{self.name} selected topic {self.selected_topics}")
@@ -101,6 +104,7 @@ def weighted_random_selection(weights):
         if rand < cumulative_probability:
             return index
     return None
+
 
 no_of_topics = 5
 topics = [i for i in range(1, no_of_topics + 1)]

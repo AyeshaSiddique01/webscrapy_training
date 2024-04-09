@@ -31,7 +31,7 @@ class IObservable(ABC):
 class IObserver(ABC):
 
     @abstractmethod
-    def update(self, item):
+    def on_update(self, item):
         pass
 
 
@@ -41,19 +41,20 @@ class Observable(IObservable):
 
     def add(self, observer):
         self.observers.append(observer)
+        observer.observable = self
 
     def remove(self, observer):
         self.observers.remove(observer)
 
     def notify(self, item):
         for observer in self.observers:
-            observer.update(item)
+            observer.on_update(item)
 
 
 class Teacher(Observable):
     def __init__(self, topic_store):
-        self.topic_store = topic_store
         super().__init__()
+        self.topic_store = topic_store
 
     def remove_topic(self, topic):
         if self.topic_store.is_topic_available(topic):
@@ -64,24 +65,24 @@ class Teacher(Observable):
 
 
 class Observer(IObserver):
-    def __init__(self, name):
-        self.name = name
+    def __init__(self):
+        self.observable = None
 
-    def update(self, item):
-        print(f"{self.name}: {item} has been selected.")
+    def on_update(self, item):
+        print(f"{item} has been selected.")
 
 
 class Student(Observer):
     def __init__(self, name):
+        self.name = name
         self.selected_topics = []
-        self.teacher = None
-        super().__init__(name)
+        super().__init__()
 
     def select_random_topic(self):
         selected_topic = random.choice(
-            list(self.teacher.topic_store.topics))
+            list(self.observable.topic_store.topics))
         self.selected_topics.append(selected_topic)
-        self.teacher.remove_topic(selected_topic)
+        self.observable.remove_topic(selected_topic)
 
     def get_selected_topic(self):
         print(f"{self.name} selected topic {self.selected_topics}")
@@ -96,7 +97,6 @@ teacher = Teacher(topic_store)
 students = [Student(f"Student{i}") for i in range(1, no_of_topics + 1)]
 
 for student in students:
-    student.teacher = teacher
     teacher.add(student)
 
 for student in students:

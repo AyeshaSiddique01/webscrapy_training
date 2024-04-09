@@ -45,6 +45,7 @@ class Observable(IObservable):
 
     def remove(self, observer):
         self.observers.remove(observer)
+        observer.observable = None
 
     def notify(self, item):
         for observer in self.observers:

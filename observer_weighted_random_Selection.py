@@ -1,17 +1,6 @@
 from abc import ABC, abstractmethod
 import random
-
-
-# class TopicStore:
-#     def __init__(self, topics):
-#         self.topics = topics
-
-#     def is_topic_available(self, topic):
-#         return topic in self.topics
-
-#     def remove_topic(self, topic):
-#         self.topics.remove(topic)
-
+import copy
 
 class IObservable(ABC):
 
@@ -73,16 +62,9 @@ class Observable(IObservable):
         self.weights[observer_index] -= self.weights[observer_index] * 0.9
 
 class Teacher(Observable):
-    def __init__(self, topics):
+    def __init__(self):
         super().__init__()
-        self.topics = topics
 
-    def remove_topic(self, topic):
-        if topic in self.topics:
-            self.topics.remove(topic)
-            super().notify(topic)
-            return True
-        return False
 
 class Observer(IObserver):
     def __init__(self):
@@ -93,32 +75,36 @@ class Observer(IObserver):
 
 
 class Student(Observer):
-    def __init__(self, name):
+    def __init__(self, name, topics):
         self.name = name
+        self.topics = copy.deepcopy(topics)
         self.selected_topics = []
         super().__init__()
 
     def select_random_topic(self):
-        selected_topic = random.choice(list(self.observable.topics))
+        selected_topic = random.choice(self.topics)
         self.selected_topics.append(selected_topic)
-        if self.observable.remove_topic(selected_topic):
-            self.observable.reduce_weight(self)
+        self.observable.notify(selected_topic)
+        self.observable.reduce_weight(self)
 
     def get_selected_topic(self):
         print(f"{self.name} selected topic {self.selected_topics}")
 
+    def on_update(self, item):
+        super().on_update(item)
+        self.topics.remove(item)
 
 no_of_topics = 5
 topics = [f"Topic_{i}" for i in range(1, no_of_topics + 1)]
 
-teacher = Teacher(topics)
+teacher = Teacher()
 
-students = [Student(f"Student{i}") for i in range(1, no_of_topics + 1)]
+students = [Student(f"Student{i}", topics) for i in range(1, no_of_topics + 1)]
 
 for student in students:
     teacher.add(student)
 
-while teacher.topics:
+while students[0].topics:
     selected_weight = teacher.weighted_random_selection()
     students[selected_weight].select_random_topic()
 

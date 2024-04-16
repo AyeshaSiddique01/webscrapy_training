@@ -1,27 +1,6 @@
-from abc import ABC, abstractmethod
 import random
 
-
-class IObservable(ABC):
-
-    @abstractmethod
-    def add(self, observer):
-        pass
-
-    @abstractmethod
-    def remove(self, observer):
-        pass
-
-    @abstractmethod
-    def notify(self, item):
-        pass
-
-
-class IObserver(ABC):
-
-    @abstractmethod
-    def on_update(self, item):
-        pass
+from observer import IObservable, IObserver
 
 
 class Observable(IObservable):

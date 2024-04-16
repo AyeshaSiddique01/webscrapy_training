@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import random
-import copy
+
 
 class IObservable(ABC):
 
@@ -37,9 +37,8 @@ class Observable(IObservable):
     def remove(self, observer):
         observer_index = self.observers.index(observer)
         self.observers.remove(observer)
-        observer.observable = None
         self.weights.remove(self.weights[observer_index])
-
+        observer.observable = None
 
     def notify(self, item):
         for observer in self.observers:
@@ -56,10 +55,11 @@ class Observable(IObservable):
             if rand < cumulative_probability:
                 return index
         return None
-    
+
     def reduce_weight(self, observer):
         observer_index = self.observers.index(observer)
-        self.weights[observer_index] -= self.weights[observer_index] * 0.9
+        self.weights[observer_index] = 0
+
 
 class Teacher(Observable):
     def __init__(self):
@@ -75,9 +75,10 @@ class Observer(IObserver):
 
 
 class Student(Observer):
+
     def __init__(self, name, topics):
         self.name = name
-        self.topics = copy.deepcopy(topics)
+        self.topics = topics
         self.selected_topics = []
         super().__init__()
 
@@ -90,9 +91,6 @@ class Student(Observer):
     def get_selected_topic(self):
         print(f"{self.name} selected topic {self.selected_topics}")
 
-    def on_update(self, item):
-        super().on_update(item)
-        self.topics.remove(item)
 
 no_of_topics = 5
 topics = [f"Topic_{i}" for i in range(1, no_of_topics + 1)]
@@ -104,11 +102,22 @@ students = [Student(f"Student{i}", topics) for i in range(1, no_of_topics + 1)]
 for student in students:
     teacher.add(student)
 
-while students[0].topics:
+while any(teacher.weights):
     selected_weight = teacher.weighted_random_selection()
     students[selected_weight].select_random_topic()
 
+print("Students selected topic")
 for student in students:
     student.get_selected_topic()
+
+all_selected_topic = []
+for student in students:
+    all_selected_topic += student.selected_topics
+
+unique_topic = set(all_selected_topic)
+if len(unique_topic) < len(students[0].topics):
+    print("Some students haven't selected topic")
+else:
+    print("All students selected unique topic")
 
 print(teacher.weights)

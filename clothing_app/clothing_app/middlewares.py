@@ -7,6 +7,8 @@
 from itemadapter import ItemAdapter, is_item
 from scrapy import signals
 
+from .select_proxy import Proxy, ProxyManager
+
 
 class ClothingAppSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
@@ -100,3 +102,49 @@ class ClothingAppDownloaderMiddleware:
 
     def spider_opened(self, spider):
         spider.logger.info("Spider opened: %s" % spider.name)
+
+
+class ClothingAppProxyMiddleware(object):
+    def __init__(self):
+        self.proxy = None
+        self.proxy_manager = ProxyManager()
+
+        self.proxies = [
+            Proxy("http://stylesage:O5s6a9jaAs@66.56.67.157:60000"),
+            Proxy("http://stylesage:O5s6a9jaAs@104.148.85.158:60000"),
+            Proxy("http://stylesage:O5s6a9jaAs@207.32.149.111:60000"),
+            Proxy("http://stylesage:O5s6a9jaAs@192.177.5.74:60000"),
+            Proxy("http://stylesage:O5s6a9jaAs@207.32.149.4:60000"),
+            Proxy("http://stylesage:O5s6a9jaAs@207.32.149.22:60000"),
+            Proxy("http://stylesage:O5s6a9jaAs@66.56.67.6:60000"),
+            Proxy("http://stylesage:O5s6a9jaAs@104.148.85.4:60000"),
+            Proxy("http://stylesage:O5s6a9jaAs@66.56.67.28:60000"),
+            Proxy("http://stylesage:O5s6a9jaAs@104.148.85.127:60000"),
+        ]
+
+        for proxy in self.proxies:
+            self.proxy_manager.add(proxy)
+
+    def process_request(self, request, spider):
+        if "proxy" not in request.meta:
+            selected_weight = self.proxy_manager.weighted_random_selection()
+            self.proxy = self.proxies[selected_weight]
+            request.meta["proxy"] = self.proxy.name
+
+    def get_proxy(self):
+        return self.proxy
+
+    def process_response(self, request, response, spider):
+        GOOD_STATUSES = {200, 301, 302}
+        BLOCKED_STATUSES = {403, 407, 503}
+
+        if response.status in BLOCKED_STATUSES:
+            self.proxy.select_proxy("blocked")
+        elif response.status in GOOD_STATUSES:
+            self.proxy.select_proxy("good")
+        else:
+            self.proxy.select_proxy("ok")
+        return response
+
+    def process_exception(self, request, exception, spider):
+        self.proxy.select_proxy("blocked")

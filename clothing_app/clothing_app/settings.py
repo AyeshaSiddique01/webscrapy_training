@@ -50,9 +50,10 @@ ROBOTSTXT_OBEY = True
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-# DOWNLOADER_MIDDLEWARES = {
-#    "clothing_app.middlewares.ClothingAppDownloaderMiddleware": 543,
-# }
+DOWNLOADER_MIDDLEWARES = {
+    "clothing_app.middlewares.ClothingAppDownloaderMiddleware": 543,
+    'clothing_app.middlewares.ClothingAppProxyMiddleware': 350,
+}
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html

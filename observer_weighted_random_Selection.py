@@ -16,7 +16,7 @@ class Observable(IObservable):
     def remove(self, observer):
         observer_index = self.observers.index(observer)
         self.observers.remove(observer)
-        self.weights.remove(self.weights[observer_index])
+        self.weights.pop(observer_index)
         observer.observable = None
 
     def notify(self, item):
@@ -35,14 +35,14 @@ class Observable(IObservable):
                 return index
         return None
 
-    def reduce_weight(self, observer):
-        observer_index = self.observers.index(observer)
-        self.weights[observer_index] = 0
-
 
 class Teacher(Observable):
     def __init__(self):
         super().__init__()
+
+    def reduce_weight(self, observer):
+        observer_index = self.observers.index(observer)
+        self.weights[observer_index] = 0
 
 
 class Observer(IObserver):

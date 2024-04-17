@@ -1,27 +1,20 @@
 import random
+from observer import Observable, Observer
 
-from observer import IObservable, IObserver
-
-
-class Observable(IObservable):
-    def __init__(self):
-        self.observers = []
+class WeightedObservable(Observable):
+    def __init__(self, max_weight):
+        super().__init__()
         self.weights = []
+        self.max_weight = max_weight
 
     def add(self, observer):
-        self.observers.append(observer)
-        observer.observable = self
-        self.weights.append(1)
+        super().add(observer)
+        self.weights.append(self.max_weight)
 
     def remove(self, observer):
+        super().remove(observer)
         observer_index = self.observers.index(observer)
-        self.observers.remove(observer)
         self.weights.pop(observer_index)
-        observer.observable = None
-
-    def notify(self, item):
-        for observer in self.observers:
-            observer.on_update(item)
 
     def weighted_random_selection(self):
         total_weight = sum(self.weights)
@@ -32,26 +25,18 @@ class Observable(IObservable):
         for index, probability in enumerate(probabilities):
             cumulative_probability += probability
             if rand < cumulative_probability:
-                return index
+                return self.observers[index]
         return None
 
+class Teacher(WeightedObservable):
 
-class Teacher(Observable):
+    MAX_WEIGHT = 1
     def __init__(self):
-        super().__init__()
-
+        super().__init__(self.MAX_WEIGHT)
+    
     def reduce_weight(self, observer):
         observer_index = self.observers.index(observer)
         self.weights[observer_index] = 0
-
-
-class Observer(IObserver):
-    def __init__(self):
-        self.observable = None
-
-    def on_update(self, item):
-        print(f"{item} has been selected.")
-
 
 class Student(Observer):
 
@@ -82,8 +67,8 @@ for student in students:
     teacher.add(student)
 
 while any(teacher.weights):
-    selected_weight = teacher.weighted_random_selection()
-    students[selected_weight].select_random_topic()
+    selected_student = teacher.weighted_random_selection()
+    selected_student.select_random_topic()
 
 print("Students selected topic")
 for student in students:

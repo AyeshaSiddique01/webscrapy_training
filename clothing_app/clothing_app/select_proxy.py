@@ -55,7 +55,7 @@ class Observable(IObservable):
         for index, probability in enumerate(probabilities):
             cumulative_probability += probability
             if rand < cumulative_probability:
-                return index
+                return self.observers[index]
         return None
 
     def update_weight(self, observer, status):

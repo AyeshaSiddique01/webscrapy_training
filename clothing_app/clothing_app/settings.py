@@ -53,6 +53,7 @@ ROBOTSTXT_OBEY = True
 DOWNLOADER_MIDDLEWARES = {
     "clothing_app.middlewares.ClothingAppDownloaderMiddleware": 543,
     'clothing_app.middlewares.ClothingAppProxyMiddleware': 350,
+    'clothing_app.middlewares.ProxyLoggingMiddleware': 370,
 }
 
 # Enable or disable extensions
@@ -93,3 +94,5 @@ ITEM_PIPELINES = {
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
+
+proxies_path = "/Users/ayesha.siddique/Documents/Web scrappy/Clothing_website/clothing_app/clothing_app/utils/proxies.txt"

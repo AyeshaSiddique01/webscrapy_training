@@ -4,10 +4,12 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 # useful for handling different item types with a single interface
-from itemadapter import ItemAdapter, is_item
+from urllib.parse import urlparse
+
 from scrapy import signals
 
 from .select_proxy import Proxy, ProxyManager
+from .settings import proxies_path
 
 
 class ClothingAppSpiderMiddleware:
@@ -106,45 +108,53 @@ class ClothingAppDownloaderMiddleware:
 
 class ClothingAppProxyMiddleware(object):
     def __init__(self):
-        self.proxy = None
         self.proxy_manager = ProxyManager()
+        self.proxies = []
 
-        self.proxies = [
-            Proxy("http://stylesage:O5s6a9jaAs@66.56.67.157:60000"),
-            Proxy("http://stylesage:O5s6a9jaAs@104.148.85.158:60000"),
-            Proxy("http://stylesage:O5s6a9jaAs@207.32.149.111:60000"),
-            Proxy("http://stylesage:O5s6a9jaAs@192.177.5.74:60000"),
-            Proxy("http://stylesage:O5s6a9jaAs@207.32.149.4:60000"),
-            Proxy("http://stylesage:O5s6a9jaAs@207.32.149.22:60000"),
-            Proxy("http://stylesage:O5s6a9jaAs@66.56.67.6:60000"),
-            Proxy("http://stylesage:O5s6a9jaAs@104.148.85.4:60000"),
-            Proxy("http://stylesage:O5s6a9jaAs@66.56.67.28:60000"),
-            Proxy("http://stylesage:O5s6a9jaAs@104.148.85.127:60000"),
-        ]
+        with open(proxies_path, "r", encoding="utf-8") as file:
+            self.proxies = [Proxy(line.strip()) for line in file]
 
         for proxy in self.proxies:
             self.proxy_manager.add(proxy)
 
     def process_request(self, request, spider):
         if "proxy" not in request.meta:
-            selected_weight = self.proxy_manager.weighted_random_selection()
-            self.proxy = self.proxies[selected_weight]
-            request.meta["proxy"] = self.proxy.name
-
-    def get_proxy(self):
-        return self.proxy
+            proxy = self.proxy_manager.weighted_random_selection()
+            request.meta["proxy"] = proxy.name
 
     def process_response(self, request, response, spider):
+        proxy_used = self.get_used_proxy(request)
         GOOD_STATUSES = {200, 301, 302}
         BLOCKED_STATUSES = {403, 407, 503}
 
         if response.status in BLOCKED_STATUSES:
-            self.proxy.select_proxy("blocked")
+            proxy_used.select_proxy("blocked")
         elif response.status in GOOD_STATUSES:
-            self.proxy.select_proxy("good")
+            proxy_used.select_proxy("good")
         else:
-            self.proxy.select_proxy("ok")
+            proxy_used.select_proxy("ok")
         return response
 
     def process_exception(self, request, exception, spider):
-        self.proxy.select_proxy("blocked")
+        proxy_used = self.get_used_proxy(request)
+        proxy_used.select_proxy("blocked")
+
+    def get_used_proxy(self, request):
+        proxy_name = request.meta["proxy"]
+        for proxy in self.proxies:
+            if self.extract_proxy(proxy.name) == proxy_name:
+                return proxy
+
+        return ""
+
+    def extract_proxy(self, proxy):
+        parsed_proxy = urlparse(proxy)
+        proxy_url = f"http://{parsed_proxy.hostname}:{parsed_proxy.port}"
+        return proxy_url
+
+
+class ProxyLoggingMiddleware:
+    def process_request(self, request, spider):
+        spider.logger.info(
+            f"Request {request.url} sent with {request.meta.get('proxy')}"
+        )

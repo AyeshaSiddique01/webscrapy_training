@@ -2,14 +2,15 @@
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-
-# useful for handling different item types with a single interface
-from urllib.parse import urlparse
+import base64
+from urllib.parse import unquote, urlunparse
+from urllib.request import _parse_proxy
 
 from scrapy import signals
+from scrapy.exceptions import NotConfigured
+from scrapy.utils.python import to_bytes
 
 from .select_proxy import Proxy, ProxyManager
-from .settings import proxies_path
 
 
 class ClothingAppSpiderMiddleware:
@@ -107,7 +108,8 @@ class ClothingAppDownloaderMiddleware:
 
 
 class ClothingAppProxyMiddleware(object):
-    def __init__(self):
+    def __init__(self, proxies_path, auth_encoding="latin-1"):
+        self.auth_encoding = auth_encoding
         self.proxy_manager = ProxyManager()
         self.proxies = []
 
@@ -117,40 +119,80 @@ class ClothingAppProxyMiddleware(object):
         for proxy in self.proxies:
             self.proxy_manager.add(proxy)
 
+    @classmethod
+    def from_crawler(cls, crawler):
+        settings = crawler.settings
+        if not settings.getbool("HTTPPROXY_ENABLED"):
+            raise NotConfigured
+        auth_encoding = settings.get("HTTPPROXY_AUTH_ENCODING")
+        return cls(settings.get("PROXIES_PATH"), auth_encoding)
+
     def process_request(self, request, spider):
         if "proxy" not in request.meta:
             proxy = self.proxy_manager.weighted_random_selection()
-            request.meta["proxy"] = proxy.name
+            creds, proxy_url = self.get_proxy(proxy.name)
+
+        self._set_proxy_and_creds(request, proxy_url, creds)
+
+    def _set_proxy_and_creds(self, request, proxy_url, creds):
+        if proxy_url:
+            request.meta["proxy"] = proxy_url
+        elif request.meta.get("proxy") is not None:
+            request.meta["proxy"] = None
+        if creds:
+            request.headers[b"Proxy-Authorization"] = b"Basic " + creds
+            request.meta["_auth_proxy"] = proxy_url
+        elif "_auth_proxy" in request.meta:
+            if proxy_url != request.meta["_auth_proxy"]:
+                if b"Proxy-Authorization" in request.headers:
+                    del request.headers[b"Proxy-Authorization"]
+                del request.meta["_auth_proxy"]
+        elif b"Proxy-Authorization" in request.headers:
+            if proxy_url:
+                request.meta["_auth_proxy"] = proxy_url
+            else:
+                del request.headers[b"Proxy-Authorization"]
 
     def process_response(self, request, response, spider):
-        proxy_used = self.get_used_proxy(request)
+        creds, proxy_used = self.get_used_proxy(request)
         GOOD_STATUSES = {200, 301, 302}
         BLOCKED_STATUSES = {403, 407, 503}
 
         if response.status in BLOCKED_STATUSES:
-            proxy_used.select_proxy("blocked")
+            proxy_used.set_weight_zero()
         elif response.status in GOOD_STATUSES:
-            proxy_used.select_proxy("good")
+            proxy_used.increase_weight()
         else:
-            proxy_used.select_proxy("ok")
+            proxy_used.reduce_weight()
         return response
 
     def process_exception(self, request, exception, spider):
-        proxy_used = self.get_used_proxy(request)
-        proxy_used.select_proxy("blocked")
+        cred, proxy_used = self.get_used_proxy(request)
+        proxy_used.set_weight_zero("blocked")
 
     def get_used_proxy(self, request):
         proxy_name = request.meta["proxy"]
         for proxy in self.proxies:
-            if self.extract_proxy(proxy.name) == proxy_name:
-                return proxy
+            creds, proxy_url = self.get_proxy(proxy.name)
+            if proxy_url == proxy_name:
+                return creds, proxy
 
-        return ""
+    def _basic_auth_header(self, username, password):
+        user_pass = to_bytes(
+            f"{unquote(username)}:{unquote(password)}", encoding=self.auth_encoding
+        )
+        return base64.b64encode(user_pass)
 
-    def extract_proxy(self, proxy):
-        parsed_proxy = urlparse(proxy)
-        proxy_url = f"http://{parsed_proxy.hostname}:{parsed_proxy.port}"
-        return proxy_url
+    def get_proxy(self, url):
+        proxy_type, user, password, hostport = _parse_proxy(url)
+        proxy_url = urlunparse((proxy_type, hostport, "", "", "", ""))
+
+        if user:
+            creds = self._basic_auth_header(user, password)
+        else:
+            creds = None
+
+        return creds, proxy_url
 
 
 class ProxyLoggingMiddleware:

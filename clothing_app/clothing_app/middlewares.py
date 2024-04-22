@@ -128,15 +128,13 @@ class ClothingAppProxyMiddleware(object):
         return cls(settings.get("PROXIES_PATH"), auth_encoding)
 
     def process_request(self, request, spider):
-        if "proxy" not in request.meta:
-            proxy = self.proxy_manager.weighted_random_selection()
-            creds, proxy_url = self.get_proxy(proxy.name)
+        proxy = self.proxy_manager.weighted_random_selection()
+        self._set_proxy_and_creds(request, proxy.name)
 
-        self._set_proxy_and_creds(request, proxy_url, creds)
-
-    def _set_proxy_and_creds(self, request, proxy_url, creds):
-        if proxy_url:
-            request.meta["proxy"] = proxy_url
+    def _set_proxy_and_creds(self, request, proxy):
+        creds, proxy_url = self.get_proxy(proxy)
+        if proxy:
+            request.meta["proxy"] = proxy
         elif request.meta.get("proxy") is not None:
             request.meta["proxy"] = None
         if creds:
@@ -167,15 +165,18 @@ class ClothingAppProxyMiddleware(object):
         return response
 
     def process_exception(self, request, exception, spider):
-        cred, proxy_used = self.get_used_proxy(request)
-        proxy_used.set_weight_zero("blocked")
+        creds, proxy_used = self.get_used_proxy(request)
+        proxy_used.set_weight_zero()
 
     def get_used_proxy(self, request):
-        proxy_name = request.meta["proxy"]
+        proxy_name = request.meta.get("proxy")  
+
         for proxy in self.proxies:
             creds, proxy_url = self.get_proxy(proxy.name)
             if proxy_url == proxy_name:
                 return creds, proxy
+
+        return None, None
 
     def _basic_auth_header(self, username, password):
         user_pass = to_bytes(

@@ -5,7 +5,7 @@ class ProxyManager(WeightedObservable):
     MAX_WEIGHT = 100
 
     def __init__(self):
-        super().__init__(self.MAX_WEIGHT)
+        super().__init__()
 
     def set_weight_zero(self, observer):
         observer_index = self.observers.index(observer)

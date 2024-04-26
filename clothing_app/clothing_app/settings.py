@@ -31,7 +31,7 @@ ROBOTSTXT_OBEY = True
 # CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
-# COOKIES_ENABLED = False
+COOKIES_ENABLED = True
 
 # Disable Telnet Console (enabled by default)
 # TELNETCONSOLE_ENABLED = False
@@ -52,8 +52,10 @@ ROBOTSTXT_OBEY = True
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
     "clothing_app.middlewares.ClothingAppDownloaderMiddleware": 543,
-    'clothing_app.middlewares.ClothingAppProxyMiddleware': 350,
+    'clothing_app.middlewares.RotateProxyMiddleware': 350,
     'clothing_app.middlewares.ProxyLoggingMiddleware': 370,
+    # 'rotating_proxies.middlewares.RotatingProxyMiddleware': 610,
+    # 'rotating_proxies.middlewares.BanDetectionMiddleware': 620,
 }
 
 # Enable or disable extensions

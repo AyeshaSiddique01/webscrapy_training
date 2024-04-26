@@ -107,7 +107,7 @@ class ClothingAppDownloaderMiddleware:
         spider.logger.info("Spider opened: %s" % spider.name)
 
 
-class ClothingAppProxyMiddleware(object):
+class RotateProxyMiddleware(object):
     def __init__(self, proxies_path, auth_encoding="latin-1"):
         self.auth_encoding = auth_encoding
         self.proxy_manager = ProxyManager()

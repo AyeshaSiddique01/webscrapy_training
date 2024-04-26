@@ -2,14 +2,14 @@ import random
 from clothing_app.observer import Observable, Observer
 
 class WeightedObservable(Observable):
-    def __init__(self, max_weight):
+    MAX_WEIGHT = 1
+    def __init__(self):
         super().__init__()
         self.weights = []
-        self.max_weight = max_weight
 
     def add(self, observer):
         super().add(observer)
-        self.weights.append(self.max_weight)
+        self.weights.append(self.MAX_WEIGHT)
 
     def remove(self, observer):
         super().remove(observer)

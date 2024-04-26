@@ -2,10 +2,15 @@
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import base64
+from urllib.parse import unquote, urlunparse
+from urllib.request import _parse_proxy
 
-# useful for handling different item types with a single interface
-from itemadapter import ItemAdapter, is_item
 from scrapy import signals
+from scrapy.exceptions import NotConfigured
+from scrapy.utils.python import to_bytes
+
+from .select_proxy import Proxy, ProxyManager
 
 
 class ClothingAppSpiderMiddleware:
@@ -100,3 +105,66 @@ class ClothingAppDownloaderMiddleware:
 
     def spider_opened(self, spider):
         spider.logger.info("Spider opened: %s" % spider.name)
+
+
+class RotateProxyMiddleware(object):
+    def __init__(self, proxies_path):
+        self.proxy_manager = ProxyManager()
+        self.proxies = []
+
+        with open(proxies_path, "r", encoding="utf-8") as file:
+            self.proxies = [Proxy(line.strip()) for line in file]
+
+        for proxy in self.proxies:
+            self.proxy_manager.add(proxy)
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        settings = crawler.settings
+        proxy_path = settings.get("PROXIES_PATH")
+        return cls(proxy_path)
+
+    def process_request(self, request, spider):
+        if "proxy" not in request.meta:
+            proxy = self.proxy_manager.weighted_random_selection()
+            request.meta["proxy"] = proxy.name
+
+    def process_response(self, request, response, spider):
+        proxy_used = self.get_used_proxy(request)
+        GOOD_STATUSES = {200, 301, 302}
+        BLOCKED_STATUSES = {403, 407, 503}
+
+        if response.status in BLOCKED_STATUSES:
+            proxy_used.set_weight_zero()
+        elif response.status in GOOD_STATUSES:
+            proxy_used.increase_weight()
+        else:
+            proxy_used.reduce_weight()
+        return response
+
+    def process_exception(self, request, exception, spider):
+        proxy_used = self.get_used_proxy(request)
+        proxy_used.set_weight_zero()
+
+    def get_used_proxy(self, request):
+        proxy_name = request.meta.get("proxy")
+
+        for proxy in self.proxies:
+            proxy_url = self.get_proxy(proxy.name)
+            if proxy_url == proxy_name:
+                return proxy
+
+        return None
+
+    def get_proxy(self, url):
+        proxy_type, user, password, hostport = _parse_proxy(url)
+        proxy_url = urlunparse((proxy_type, hostport, "", "", "", ""))
+
+        return proxy_url
+
+
+class ProxyLoggingMiddleware:
+    def process_request(self, request, spider):
+        spider.logger.info(
+            f"Request {request.url} sent with {request.meta.get('proxy')}"
+        )

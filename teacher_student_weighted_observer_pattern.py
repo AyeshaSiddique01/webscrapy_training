@@ -1,32 +1,5 @@
 import random
-from observer import Observable, Observer
-
-class WeightedObservable(Observable):
-    def __init__(self, max_weight):
-        super().__init__()
-        self.weights = []
-        self.max_weight = max_weight
-
-    def add(self, observer):
-        super().add(observer)
-        self.weights.append(self.max_weight)
-
-    def remove(self, observer):
-        super().remove(observer)
-        observer_index = self.observers.index(observer)
-        self.weights.pop(observer_index)
-
-    def weighted_random_selection(self):
-        total_weight = sum(self.weights)
-        probabilities = [item / total_weight for item in self.weights]
-        cumulative_probability = 0
-        rand = random.uniform(0, 1)
-
-        for index, probability in enumerate(probabilities):
-            cumulative_probability += probability
-            if rand < cumulative_probability:
-                return self.observers[index]
-        return None
+from observer_weighted_random_Selection import WeightedObservable, WeightedObserver
 
 class Teacher(WeightedObservable):
 
@@ -38,7 +11,7 @@ class Teacher(WeightedObservable):
         observer_index = self.observers.index(observer)
         self.weights[observer_index] = 0
 
-class Student(Observer):
+class Student(WeightedObserver):
 
     def __init__(self, name, topics):
         self.name = name
@@ -56,7 +29,7 @@ class Student(Observer):
         print(f"{self.name} selected topic {self.selected_topics}")
 
 
-no_of_topics = 5
+no_of_topics = 3
 topics = [f"Topic_{i}" for i in range(1, no_of_topics + 1)]
 
 teacher = Teacher()

@@ -108,8 +108,7 @@ class ClothingAppDownloaderMiddleware:
 
 
 class RotateProxyMiddleware(object):
-    def __init__(self, proxies_path, auth_encoding="latin-1"):
-        self.auth_encoding = auth_encoding
+    def __init__(self, proxies_path):
         self.proxy_manager = ProxyManager()
         self.proxies = []
 
@@ -122,37 +121,16 @@ class RotateProxyMiddleware(object):
     @classmethod
     def from_crawler(cls, crawler):
         settings = crawler.settings
-        if not settings.getbool("HTTPPROXY_ENABLED"):
-            raise NotConfigured
-        auth_encoding = settings.get("HTTPPROXY_AUTH_ENCODING")
-        return cls(settings.get("PROXIES_PATH"), auth_encoding)
+        proxy_path = settings.get("PROXIES_PATH")
+        return cls(proxy_path)
 
     def process_request(self, request, spider):
-        proxy = self.proxy_manager.weighted_random_selection()
-        self._set_proxy_and_creds(request, proxy.name)
-
-    def _set_proxy_and_creds(self, request, proxy):
-        creds, proxy_url = self.get_proxy(proxy)
-        if proxy:
-            request.meta["proxy"] = proxy
-        elif request.meta.get("proxy") is not None:
-            request.meta["proxy"] = None
-        if creds:
-            request.headers[b"Proxy-Authorization"] = b"Basic " + creds
-            request.meta["_auth_proxy"] = proxy_url
-        elif "_auth_proxy" in request.meta:
-            if proxy_url != request.meta["_auth_proxy"]:
-                if b"Proxy-Authorization" in request.headers:
-                    del request.headers[b"Proxy-Authorization"]
-                del request.meta["_auth_proxy"]
-        elif b"Proxy-Authorization" in request.headers:
-            if proxy_url:
-                request.meta["_auth_proxy"] = proxy_url
-            else:
-                del request.headers[b"Proxy-Authorization"]
+        if "proxy" not in request.meta:
+            proxy = self.proxy_manager.weighted_random_selection()
+            request.meta["proxy"] = proxy.name
 
     def process_response(self, request, response, spider):
-        creds, proxy_used = self.get_used_proxy(request)
+        proxy_used = self.get_used_proxy(request)
         GOOD_STATUSES = {200, 301, 302}
         BLOCKED_STATUSES = {403, 407, 503}
 
@@ -165,35 +143,24 @@ class RotateProxyMiddleware(object):
         return response
 
     def process_exception(self, request, exception, spider):
-        creds, proxy_used = self.get_used_proxy(request)
+        proxy_used = self.get_used_proxy(request)
         proxy_used.set_weight_zero()
 
     def get_used_proxy(self, request):
-        proxy_name = request.meta.get("proxy")  
+        proxy_name = request.meta.get("proxy")
 
         for proxy in self.proxies:
-            creds, proxy_url = self.get_proxy(proxy.name)
+            proxy_url = self.get_proxy(proxy.name)
             if proxy_url == proxy_name:
-                return creds, proxy
+                return proxy
 
-        return None, None
-
-    def _basic_auth_header(self, username, password):
-        user_pass = to_bytes(
-            f"{unquote(username)}:{unquote(password)}", encoding=self.auth_encoding
-        )
-        return base64.b64encode(user_pass)
+        return None
 
     def get_proxy(self, url):
         proxy_type, user, password, hostport = _parse_proxy(url)
         proxy_url = urlunparse((proxy_type, hostport, "", "", "", ""))
 
-        if user:
-            creds = self._basic_auth_header(user, password)
-        else:
-            creds = None
-
-        return creds, proxy_url
+        return proxy_url
 
 
 class ProxyLoggingMiddleware:

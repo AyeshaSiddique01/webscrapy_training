@@ -189,12 +189,8 @@ class HollisterSpider(scrapy.Spider):
 
     def get_images(self, product_color):
         image_set = product_color["imageSet"]
-        images = (
-            image_set.get("prod") or [] +
-            image_set.get("ugc") or [] +
-            image_set.get("life") or [] +
-            image_set.get("model") or []
-        )
+        images = sum(image_set.get(s) or [] for s in ["prod", "ugc", "life", "model"])
+        
         return [image["mainImageSrc"] for image in images]
 
     def get_prices(self, data):
